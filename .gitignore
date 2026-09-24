@@ -1,0 +1,24 @@
+node_modules/
+dist/
+*.log
+
+# Configuración con credenciales o IPs del entorno real
+.env
+.env.*
+!.env.example
+
+# Salidas de pruebas de etiquetas
+salida/
+*.zpl
+
+# Base de datos propia: registro de impresiones y vistas guardadas
+datos/
+
+# Fotos de trabajo (etiquetas impresas, pruebas de encuadre).
+# Algunas son fotografías de etiquetas de pacientes reales: no van al
+# repositorio bajo ningún concepto. El único gráfico que sí forma parte del
+# proyecto es el logo, en public/logo.png.
+*.jpg
+*.jpeg
+*.heic
+/logo.png

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Etiquetas de paciente · HC Marbella</title>
+    <link rel="icon" href="/logo.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="barra">
+      <div class="barra-marca">
+        <img src="/logo.png" alt="HC Marbella" class="logo" />
+        <div class="barra-titulo">
+          <h1>Etiquetas de paciente</h1>
+          <span id="origen" class="chip chip-aviso" hidden></span>
+        </div>
+      </div>
+
+      <div class="barra-estado">
+        <span id="actualizado" class="meta"></span>
+        <span class="estado-impresora">
+          <span id="luz" class="luz" aria-hidden="true"></span>
+          <span id="texto-impresora">Comprobando impresora…</span>
+        </span>
+      </div>
+    </header>
+
+    <main class="contenido">
+      <section class="tarjeta filtros" aria-label="Filtros">
+        <div class="campo">
+          <label for="fecha">Fecha</label>
+          <input type="date" id="fecha" />
+        </div>
+
+        <div class="campo campo-ancho">
+          <label for="especialidad">Especialidad</label>
+          <select id="especialidad">
+            <option value="">Todas</option>
+          </select>
+        </div>
+
+        <div class="campo campo-ancho">
+          <label id="etiqueta-agenda">Agenda</label>
+          <div class="multi" id="multi-agenda">
+            <button
+              type="button"
+              class="multi-boton"
+              id="agenda-boton"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-labelledby="etiqueta-agenda agenda-texto"
+            >
+              <span id="agenda-texto">Todas las agendas</span>
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 7.5 10 12l4.5-4.5z" /></svg>
+            </button>
+
+            <div class="multi-panel" id="agenda-panel" hidden>
+              <div class="multi-buscar">
+                <input type="search" id="agenda-filtro" placeholder="Filtrar agendas…" autocomplete="off" />
+              </div>
+              <div class="multi-acciones">
+                <button type="button" class="btn btn-enlace" id="agenda-todas">Seleccionar todas</button>
+                <button type="button" class="btn btn-enlace" id="agenda-ninguna">Ninguna</button>
+              </div>
+              <div class="multi-lista" id="agenda-lista"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="campo campo-crece">
+          <label for="buscar">Buscar</label>
+          <div class="campo-icono">
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M9 3.5a5.5 5.5 0 1 0 3.4 9.8l3.1 3.2a1 1 0 0 0 1.4-1.4l-3.2-3.1A5.5 5.5 0 0 0 9 3.5Zm-3.5 5.5a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0Z" />
+            </svg>
+            <input type="search" id="buscar" placeholder="Nombre o nº de historia" autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="campo campo-estrecho">
+          <label for="copias-defecto">Etiquetas</label>
+          <input type="number" id="copias-defecto" min="1" value="3" />
+        </div>
+
+        <div class="campo" id="campo-impresora" hidden>
+          <label for="impresora">Impresora</label>
+          <select id="impresora"></select>
+        </div>
+
+        <div class="filtros-acciones">
+          <label class="conmutador" id="conmutador-ahora">
+            <input type="checkbox" id="desde-ahora" />
+            <span>Desde ahora</span>
+          </label>
+          <label class="conmutador">
+            <input type="checkbox" id="ocultar-impresas" />
+            <span>Ocultar impresas</span>
+          </label>
+          <button id="limpiar" class="btn btn-fantasma" type="button">Limpiar</button>
+          <button id="recargar" class="btn btn-suave" type="button">
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M10 3a7 7 0 1 0 6.3 3.9 1 1 0 1 0-1.8.9A5 5 0 1 1 10 5v2.2l3.6-3-3.6-3V3Z" />
+            </svg>
+            Actualizar
+          </button>
+        </div>
+      </section>
+
+      <section class="vistas" aria-label="Vistas guardadas">
+        <span class="vistas-titulo">Vistas</span>
+        <div id="lista-vistas" class="vistas-lista"></div>
+        <button id="guardar-vista" class="btn btn-enlace" type="button">+ Guardar vista actual</button>
+      </section>
+
+      <section class="tarjeta panel" aria-label="Listado de citas">
+        <div class="panel-cabecera">
+          <div id="resumen" class="resumen"></div>
+          <label class="por-pagina">
+            Filas
+            <select id="por-pagina">
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="tabla-envoltorio">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th class="col-hora">Hora</th>
+                <th>Paciente</th>
+                <th class="col-historia">Nº Historia</th>
+                <th class="col-agenda">Agenda</th>
+                <th class="col-estado">Estado</th>
+                <th class="col-accion">Etiquetas</th>
+              </tr>
+            </thead>
+            <tbody id="filas"></tbody>
+          </table>
+        </div>
+
+        <div id="vacio" class="vacio" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm2 4h10M7 12h10M7 16h6" />
+          </svg>
+          <p id="vacio-texto">No hay citas para esta fecha.</p>
+        </div>
+
+        <nav class="paginacion" id="paginacion" aria-label="Paginación">
+          <span id="rango" class="meta"></span>
+          <div class="paginacion-botones">
+            <button id="primera" class="btn btn-pagina" type="button" aria-label="Primera página">«</button>
+            <button id="anterior" class="btn btn-pagina" type="button" aria-label="Página anterior">‹</button>
+            <span id="paginas" class="paginas"></span>
+            <button id="siguiente" class="btn btn-pagina" type="button" aria-label="Página siguiente">›</button>
+            <button id="ultima" class="btn btn-pagina" type="button" aria-label="Última página">»</button>
+          </div>
+        </nav>
+      </section>
+
+      <p class="pie-nota">Los datos de paciente no salen de la red interna del hospital.</p>
+    </main>
+
+    <div id="aviso" class="aviso" role="status" aria-live="polite" hidden></div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

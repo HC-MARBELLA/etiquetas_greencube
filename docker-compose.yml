@@ -1,0 +1,18 @@
+services:
+  etiquetas:
+    build: .
+    container_name: impresora-etiquetas
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      # Las IPs de las impresoras cambian sin necesidad de reconstruir la imagen.
+      - ./config:/app/config:ro
+      # Registro de impresiones y vistas guardadas: tiene que sobrevivir a los
+      # despliegues, así que va en un volumen y no dentro de la imagen.
+      - etiquetas-datos:/app/datos
+
+volumes:
+  etiquetas-datos:

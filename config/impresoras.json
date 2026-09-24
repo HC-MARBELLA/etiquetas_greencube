@@ -1,0 +1,10 @@
+[
+  {
+    "id": "extracciones",
+    "nombre": "Mostrador de Extracciones",
+    "host": "10.0.1.141",
+    "puerto": 9100,
+    "modelo": "Zebra GK420t",
+    "predeterminada": true
+  }
+]

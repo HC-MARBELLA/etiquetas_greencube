@@ -1,0 +1,8 @@
+# El proyecto se desarrolla en Windows pero se construye y ejecuta en Alpine.
+# Se normaliza a LF en el repositorio para que el Dockerfile y los ficheros de
+# configuración no lleguen al contenedor con retornos de carro.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
