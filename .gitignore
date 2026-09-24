@@ -1,5 +1,10 @@
+# Los patrones de carpeta llevan barra inicial a propósito. Sin ella, git los
+# aplica a CUALQUIER nivel: "datos/" llegó a ignorar src/datos/, que es código
+# fuente, y el repositorio se subió sin cuatro ficheros.
+# node_modules/ es la excepción deliberada: ahí sí interesa a cualquier nivel.
+
 node_modules/
-dist/
+/dist/
 *.log
 
 # Configuración con credenciales o IPs del entorno real
@@ -8,11 +13,11 @@ dist/
 !.env.example
 
 # Salidas de pruebas de etiquetas
-salida/
+/salida/
 *.zpl
 
 # Base de datos propia: registro de impresiones y vistas guardadas
-datos/
+/datos/
 
 # Fotos de trabajo (etiquetas impresas, pruebas de encuadre).
 # Algunas son fotografías de etiquetas de pacientes reales: no van al
