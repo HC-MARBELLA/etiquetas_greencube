@@ -19,9 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Node 24: el registro de impresiones usa node:sqlite, que en Node 22
+      # todavía exige el flag --experimental-sqlite.
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
 
       - run: npm ci

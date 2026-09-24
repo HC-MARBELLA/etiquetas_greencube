@@ -126,8 +126,11 @@ clínico no es sitio para un registro de impresiones.
 
 Se usa el SQLite que trae Node (`node:sqlite`), sin dependencias nativas, para
 que la imagen de Docker siga siendo un `node:alpine` sin herramientas de
-compilación. En `docker-compose.yml` va montado en un volumen para que
-sobreviva a los despliegues.
+compilación. Va montado en un volumen para que sobreviva a los despliegues.
+
+**Requiere Node 24 o superior.** En Node 22 el módulo `node:sqlite` todavía
+exige arrancar con `--experimental-sqlite`, así que la imagen y el flujo de
+integración fijan Node 24.
 
 ### La marca de "ya impreso"
 
