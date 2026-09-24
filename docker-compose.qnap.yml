@@ -1,0 +1,66 @@
+# Despliegue en NAS241 desde la imagen publicada en GHCR.
+#
+# Sigue la misma convención que el resto de aplicaciones del NAS
+# (reportes-gc, hilo-musical): imagen de ghcr.io/hc-marbella, un Watchtower
+# propio con ámbito acotado, y el proyecto en /share/Container/.
+#
+#   cd /share/Container/ETIQUETAS_GREENCUBE
+#   docker compose -f docker-compose.qnap.yml up -d
+#
+# Para desarrollo en local, usar docker-compose.yml, que construye la imagen.
+
+services:
+  etiquetas:
+    image: ghcr.io/hc-marbella/etiquetas_greencube:latest
+    container_name: hcmarbella_etiquetas
+    restart: unless-stopped
+
+    # El 3000 del NAS ya lo ocupa hcmarbella_caddy. El rango 50xx es donde
+    # viven el resto de aplicaciones del hospital.
+    ports:
+      - "5100:3000"
+
+    # Credenciales de PRIME. Este fichero NO está en el repositorio: hay que
+    # crearlo en el NAS a partir de .env.example.
+    env_file:
+      - .env
+
+    volumes:
+      # Las IPs de las impresoras cambian sin reconstruir la imagen.
+      - ./config:/app/config:ro
+      # Registro de impresiones y vistas guardadas: sobrevive a los despliegues.
+      - etiquetas-datos:/app/datos
+
+    labels:
+      com.centurylinklabs.watchtower.scope: etiquetas
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/salud"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Watchtower con ámbito propio: solo vigila los contenedores etiquetados con
+  # este scope, para no interferir con el resto del NAS.
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: hcmarbella_etiquetas_watchtower
+    restart: unless-stopped
+    # --cleanup borra las imágenes antiguas tras actualizar. El volumen de
+    # Docker del NAS está al 82%, así que conviene.
+    command: --scope etiquetas --cleanup
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      com.centurylinklabs.watchtower: "true"
+      com.centurylinklabs.watchtower.scope: etiquetas
+
+volumes:
+  etiquetas-datos:

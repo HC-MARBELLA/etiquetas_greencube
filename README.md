@@ -36,37 +36,58 @@ npm run dev             # http://localhost:3000
 
 ## Despliegue en NAS241
 
-```bash
-docker compose up -d --build
-```
-
 Queda en `http://10.0.0.241:5100`. Se usa el rango 50xx porque el 3000 del NAS
 ya lo ocupa `hcmarbella_caddy`.
 
-Antes del primer arranque hay que **crear el `.env` en el NAS** a partir de
-`.env.example` — no está en el repositorio porque lleva las credenciales de
-PRIME.
+```bash
+# En el NAS, siguiendo la convención del resto de aplicaciones
+mkdir -p /share/Container/ETIQUETAS_GREENCUBE
+cd /share/Container/ETIQUETAS_GREENCUBE
 
-### Requisito de red pendiente
+# Bajar compose y configuración del repositorio
+git clone https://github.com/HC-MARBELLA/etiquetas_greencube.git .
 
-**El NAS no alcanza la impresora.** El NAS está en `10.0.0.241` (interfaz
-`internal` del FortiGate) y la Zebra en `10.0.1.141` (`internal2`), y no hay
-ninguna policy que permita ese tráfico: se descarta por denegación implícita.
+# Credenciales de PRIME: NO están en el repositorio
+cp .env.example .env
+vi .env          # rellenar PRIME_USUARIO y PRIME_PASSWORD
 
-Los puestos sí llegan, por la policy 71 `Vlan6 HCC --> LAN2(IMPRIMIR)`. Hace
-falta una regla equivalente para el NAS:
+docker compose -f docker-compose.qnap.yml up -d
+docker compose -f docker-compose.qnap.yml ps
+```
 
-| Campo | Valor |
-|---|---|
-| srcintf | `internal` |
-| dstintf | `internal2` |
-| srcaddr | NAS241 — `10.0.0.241/32` |
-| dstaddr | `10.0.1.141/32` |
-| service | TCP/9100 |
-| action | accept, sin NAT |
+Si el paquete de GHCR es privado, el NAS necesita credenciales para bajarlo:
+`docker login ghcr.io` con un token de lectura de paquetes, una sola vez.
 
-Sin esa regla la aplicación arranca y lee la agenda con normalidad —PRIME está
-en la misma subred que el NAS— pero **todas las impresiones fallan**.
+Comprobación rápida tras arrancar:
+
+```bash
+curl -s http://10.0.0.241:5100/salud
+```
+
+### Red
+
+El NAS está en `10.0.0.241` (interfaz `internal` del FortiGate) y la Zebra en
+`10.0.1.141` (`internal2`), en subredes distintas. **El tráfico está
+permitido**: lo cubre la policy 10 `LAN --> LAN2` (`internal` → `internal2`,
+srcaddr `all`, service ALL, accept). Verificado contra el propio dispositivo:
+
+```
+# diagnose firewall iprope lookup 10.0.0.241 12345 10.0.1.141 9100 6 internal
+  matches policy id: 10
+```
+
+PRIME (`10.0.0.16`) está en la misma subred que el NAS, así que ese tráfico ni
+llega a pasar por el cortafuegos.
+
+### Publicación e imagen
+
+`.github/workflows/publicar.yml` comprueba tipos y sintaxis y, si pasa, publica
+`ghcr.io/hc-marbella/etiquetas_greencube:latest` en cada push a `main`. El
+Watchtower con ámbito `etiquetas` que define `docker-compose.qnap.yml` la
+recoge y actualiza el contenedor solo.
+
+La comprobación va **antes** de publicar a propósito: con despliegue
+automático, una imagen que no compila llegaría sola al mostrador.
 
 ## La interfaz
 
