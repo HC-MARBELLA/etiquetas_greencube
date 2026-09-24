@@ -42,6 +42,21 @@ function listaDeAgendas(valor: string | string[] | undefined): string[] {
 export async function registrarRutas(app: FastifyInstance): Promise<void> {
   const datos = obtenerProveedor()
 
+  /**
+   * Sonda de vida para Docker.
+   *
+   * Comprueba solo que el servidor responde y tiene su configuración cargada.
+   * A propósito no consulta PRIME ni la impresora: si se acaban las etiquetas
+   * o alguien apaga la Zebra, el contenedor no debe marcarse como enfermo ni
+   * reiniciarse, porque la aplicación está perfectamente sana.
+   */
+  app.get('/salud', async () => ({
+    ok: true,
+    origenDatos: datos.nombre,
+    impresoras: config.impresoras.length,
+    hora: new Date().toISOString(),
+  }))
+
   app.get('/api/config', async () => ({
     copiasPorDefecto: config.copiasPorDefecto,
     copiasMaximas: config.copiasMaximas,

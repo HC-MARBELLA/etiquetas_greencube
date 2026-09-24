@@ -21,6 +21,16 @@ COPY --from=build /app/dist ./dist
 COPY public ./public
 COPY config ./config
 
+# El registro de impresiones y las vistas guardadas viven aquí, montado como
+# volumen desde docker-compose.
+RUN mkdir -p /app/datos && chown -R node:node /app/datos
+
 USER node
 EXPOSE 3000
+
+# Solo comprueba que el servidor responde. No mira la impresora a propósito:
+# quedarse sin etiquetas no es motivo para reiniciar el contenedor.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3000/salud || exit 1
+
 CMD ["node", "dist/index.js"]

@@ -34,11 +34,39 @@ cp .env.example .env    # ajustar si hace falta
 npm run dev             # http://localhost:3000
 ```
 
-Despliegue en el NAS:
+## Despliegue en NAS241
 
 ```bash
 docker compose up -d --build
 ```
+
+Queda en `http://10.0.0.241:5100`. Se usa el rango 50xx porque el 3000 del NAS
+ya lo ocupa `hcmarbella_caddy`.
+
+Antes del primer arranque hay que **crear el `.env` en el NAS** a partir de
+`.env.example` — no está en el repositorio porque lleva las credenciales de
+PRIME.
+
+### Requisito de red pendiente
+
+**El NAS no alcanza la impresora.** El NAS está en `10.0.0.241` (interfaz
+`internal` del FortiGate) y la Zebra en `10.0.1.141` (`internal2`), y no hay
+ninguna policy que permita ese tráfico: se descarta por denegación implícita.
+
+Los puestos sí llegan, por la policy 71 `Vlan6 HCC --> LAN2(IMPRIMIR)`. Hace
+falta una regla equivalente para el NAS:
+
+| Campo | Valor |
+|---|---|
+| srcintf | `internal` |
+| dstintf | `internal2` |
+| srcaddr | NAS241 — `10.0.0.241/32` |
+| dstaddr | `10.0.1.141/32` |
+| service | TCP/9100 |
+| action | accept, sin NAT |
+
+Sin esa regla la aplicación arranca y lee la agenda con normalidad —PRIME está
+en la misma subred que el NAS— pero **todas las impresiones fallan**.
 
 ## La interfaz
 

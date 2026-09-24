@@ -1,18 +1,39 @@
 services:
   etiquetas:
     build: .
-    container_name: impresora-etiquetas
+    image: hcmarbella/etiquetas-greencube:1.0
+    container_name: hcmarbella_etiquetas
     restart: unless-stopped
+
+    # El 3000 del NAS ya lo ocupa hcmarbella_caddy. Se usa el rango 50xx, que
+    # es donde viven el resto de aplicaciones del hospital.
     ports:
-      - "3000:3000"
+      - "5100:3000"
+
+    # Credenciales de PRIME. Este fichero NO está en el repositorio: hay que
+    # crearlo en el NAS a partir de .env.example.
     env_file:
       - .env
+
     volumes:
       # Las IPs de las impresoras cambian sin necesidad de reconstruir la imagen.
       - ./config:/app/config:ro
       # Registro de impresiones y vistas guardadas: tiene que sobrevivir a los
       # despliegues, así que va en un volumen y no dentro de la imagen.
       - etiquetas-datos:/app/datos
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/salud"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   etiquetas-datos:
