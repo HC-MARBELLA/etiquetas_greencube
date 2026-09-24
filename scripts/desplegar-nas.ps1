@@ -59,25 +59,47 @@ if (-not (Get-Command ssh -ErrorAction SilentlyContinue)) {
   exit 1
 }
 
-$ficheros = @(
-  @{ local = Join-Path $raiz $Compose;                 remoto = $Compose }
-  @{ local = Join-Path $raiz '.env';                   remoto = '.env' }
-  @{ local = Join-Path $raiz 'config\impresoras.json'; remoto = 'config/impresoras.json' }
-)
+$rutaCompose = Join-Path $raiz $Compose
+$rutaEnv     = Join-Path $raiz '.env'
+$rutaImpr    = Join-Path $raiz 'config\impresoras.json'
 
-foreach ($f in $ficheros) {
-  if (-not (Test-Path $f.local)) { Mal "Falta $($f.local)"; exit 1 }
-  Bien $f.remoto
+foreach ($r in @($rutaCompose, $rutaEnv, $rutaImpr)) {
+  if (-not (Test-Path $r)) { Mal "Falta $r"; exit 1 }
 }
+Bien 'Ficheros de origen presentes'
 
 # El error más probable: desplegar con el .env sin rellenar y que la aplicación
 # arranque sana pero sin poder consultar la agenda.
-$envLocal = [System.IO.File]::ReadAllText((Join-Path $raiz '.env'))
+$envLocal = [System.IO.File]::ReadAllText($rutaEnv)
 if ($envLocal -notmatch '(?m)^PRIME_USUARIO=\S' -or $envLocal -notmatch '(?m)^PRIME_PASSWORD=\S') {
   Mal 'El .env no tiene PRIME_USUARIO o PRIME_PASSWORD. Rellénalos antes de desplegar.'
   exit 1
 }
 Bien 'Credenciales de PRIME presentes en .env'
+
+# La configuración de impresoras viaja como variable de entorno, no como
+# fichero montado: el contenedor corre como usuario `node` y las carpetas
+# compartidas del QNAP usan ACL, así que un montaje del anfitrión no siempre
+# es legible desde dentro por mucho chmod que se le aplique.
+# Ojo con la serialización: canalizar un array por ConvertTo-Json hace que
+# PowerShell lo envuelva en {"value":[...],"Count":N}. Hay que pasar el array
+# por -InputObject y forzarlo con @() para que salga JSON limpio.
+$objetoImpr = Get-Content $rutaImpr -Raw | ConvertFrom-Json
+$impresoras = ConvertTo-Json -InputObject @($objetoImpr) -Compress -Depth 5
+
+# Comprobación: lo que se envía tiene que volver a leerse como la misma lista.
+$verificacion = $impresoras | ConvertFrom-Json
+if (-not $verificacion[0].id -or -not $verificacion[0].host) {
+  Mal 'La configuración de impresoras no se serializó bien. Revisa config/impresoras.json.'
+  Write-Host "  generado: $impresoras"
+  exit 1
+}
+
+$envRemoto = ($envLocal -replace '(?m)^\s*#?\s*IMPRESORAS=.*\r?\n?', '').TrimEnd("`r", "`n")
+$envRemoto += "`n`n# Generado por desplegar-nas.ps1 desde config/impresoras.json`n"
+$envRemoto += "IMPRESORAS=$impresoras`n"
+
+Bien "Impresoras embebidas en el .env remoto: $(($verificacion | ForEach-Object { "$($_.id)@$($_.host)" }) -join ', ')"
 
 # --- Construcción del guion remoto -------------------------------------------
 
@@ -86,18 +108,18 @@ Bien 'Credenciales de PRIME presentes en .env'
 # y sin proteger el delimitador llegaría truncada al NAS.
 $FIN = '__FIN_DE_FICHERO__'
 
-function BloqueFichero($rutaLocal, $rutaRemota) {
+function BloqueContenido($contenido, $rutaRemota) {
   # Finales de línea a LF: ver la nota de la cabecera.
-  $contenido = ([System.IO.File]::ReadAllText($rutaLocal)) -replace "`r`n", "`n"
+  $texto = $contenido -replace "`r`n", "`n"
 
-  if ($contenido -match "(?m)^$FIN$") {
-    throw "El fichero $rutaRemota contiene la marca de fin. Cambia `$FIN en el script."
+  if ($texto -match "(?m)^$FIN$") {
+    throw "El contenido de $rutaRemota incluye la marca de fin. Cambia `$FIN en el script."
   }
 
   return @(
     "echo '  escribiendo $rutaRemota'"
     "cat > '$rutaRemota' <<'$FIN'"
-    $contenido.TrimEnd("`n")
+    $texto.TrimEnd("`n")
     $FIN
   )
 }
@@ -119,17 +141,26 @@ $lineas = @(
   'fi'
   'echo "docker: $(command -v docker)"'
   ''
-  "mkdir -p '$Destino/config'"
+  "mkdir -p '$Destino'"
   "cd '$Destino'"
   'echo "--- Escribiendo configuracion ---"'
 )
 
-foreach ($f in $ficheros) {
-  $lineas += BloqueFichero $f.local $f.remoto
-}
+$lineas += BloqueContenido ([System.IO.File]::ReadAllText($rutaCompose)) $Compose
+$lineas += BloqueContenido $envRemoto '.env'
 
 $lineas += @(
-  "chmod 600 .env"
+  ''
+  '# Ya no se monta ningún fichero dentro del contenedor, así que sus permisos'
+  '# solo importan en el anfitrión. El .env lleva la contraseña de PRIME y lo'
+  '# lee Docker Compose como root: se queda cerrado.'
+  'chmod 600 .env'
+  "chmod 644 '$Compose'"
+  ''
+  '# Un despliegue anterior pudo dejar el montaje de config: si el contenedor'
+  '# sigue vivo con la definición vieja, se recrea.'
+  "docker compose -f $Compose down --remove-orphans 2>/dev/null || true"
+  ''
   'echo "--- Bajando imagen de GHCR ---"'
   "docker compose -f $Compose pull"
   'echo "--- Levantando contenedores ---"'

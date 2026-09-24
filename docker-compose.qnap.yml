@@ -26,10 +26,15 @@ services:
       - .env
 
     volumes:
-      # Las IPs de las impresoras cambian sin reconstruir la imagen.
-      - ./config:/app/config:ro
       # Registro de impresiones y vistas guardadas: sobrevive a los despliegues.
+      # Es un volumen con nombre, no un montaje del anfitrión, así que Docker
+      # le da la propiedad correcta al usuario del contenedor.
       - etiquetas-datos:/app/datos
+      #
+      # La configuración de impresoras NO se monta: va en la variable
+      # IMPRESORAS del .env. El contenedor corre como usuario `node` y las
+      # carpetas compartidas del QNAP usan ACL, de modo que un fichero montado
+      # desde el anfitrión no siempre es legible desde dentro.
 
     labels:
       com.centurylinklabs.watchtower.scope: etiquetas

@@ -35,18 +35,41 @@ export interface Impresora {
   predeterminada?: boolean
 }
 
+/**
+ * Impresoras configuradas.
+ *
+ * Se admite la variable de entorno IMPRESORAS con el JSON en una línea, y en
+ * su defecto el fichero config/impresoras.json.
+ *
+ * La variable existe porque en el NAS el contenedor corre como usuario `node`
+ * y las carpetas compartidas del QNAP usan ACL: un fichero montado desde el
+ * anfitrión puede no ser legible desde dentro por mucho `chmod` que se le
+ * haga. Con la configuración en el entorno no hay montaje ni permisos que
+ * ajustar, y sigue cambiándose sin reconstruir la imagen.
+ */
 function cargarImpresoras(): Impresora[] {
+  const delEntorno = process.env['IMPRESORAS']
   const ruta = resolve(raizProyecto, 'config', 'impresoras.json')
-  const crudo: unknown = JSON.parse(readFileSync(ruta, 'utf8'))
+  const origen = delEntorno ? 'la variable IMPRESORAS' : ruta
+
+  let crudo: unknown
+  try {
+    crudo = JSON.parse(delEntorno ?? readFileSync(ruta, 'utf8'))
+  } catch (e) {
+    throw new Error(
+      `No se pudo leer la configuración de impresoras desde ${origen}: ` +
+        (e instanceof Error ? e.message : String(e)),
+    )
+  }
 
   if (!Array.isArray(crudo) || crudo.length === 0) {
-    throw new Error(`${ruta} debe contener un array con al menos una impresora`)
+    throw new Error(`${origen} debe contener un array con al menos una impresora`)
   }
 
   return crudo.map((entrada, i) => {
     const e = entrada as Partial<Impresora>
     if (!e.id || !e.host) {
-      throw new Error(`Impresora #${i} en ${ruta}: faltan "id" y/o "host"`)
+      throw new Error(`Impresora #${i} en ${origen}: faltan "id" y/o "host"`)
     }
     return {
       id: e.id,
