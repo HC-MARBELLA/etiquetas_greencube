@@ -39,29 +39,28 @@ npm run dev             # http://localhost:3000
 Queda en `http://10.0.0.241:5100`. Se usa el rango 50xx porque el 3000 del NAS
 ya lo ocupa `hcmarbella_caddy`.
 
-```bash
-# En el NAS, siguiendo la convención del resto de aplicaciones
-mkdir -p /share/Container/ETIQUETAS_GREENCUBE
-cd /share/Container/ETIQUETAS_GREENCUBE
+Desde Windows, con el `.env` local ya relleno:
 
-# Bajar compose y configuración del repositorio
-git clone https://github.com/HC-MARBELLA/etiquetas_greencube.git .
-
-# Credenciales de PRIME: NO están en el repositorio
-cp .env.example .env
-vi .env          # rellenar PRIME_USUARIO y PRIME_PASSWORD
-
-docker compose -f docker-compose.qnap.yml up -d
-docker compose -f docker-compose.qnap.yml ps
+```powershell
+.\scripts\desplegar-nas.ps1
 ```
 
-Si el paquete de GHCR es privado, el NAS necesita credenciales para bajarlo:
-`docker login ghcr.io` con un token de lectura de paquetes, una sola vez.
+El script copia por SSH los tres ficheros que el NAS necesita
+(`docker-compose.qnap.yml`, `config/impresoras.json` y `.env`), baja la imagen
+de GHCR, levanta los contenedores y espera a que el healthcheck dé `healthy`.
+Si no lo consigue, vuelca las últimas líneas del log.
 
-Comprobación rápida tras arrancar:
+Se copian los ficheros en lugar de clonar el repositorio porque **QNAP no trae
+git**, y de todas formas el NAS no necesita el código: la imagen ya viene
+construida desde GHCR.
+
+Es idempotente: se puede relanzar para actualizar la configuración o forzar un
+redespliegue.
+
+Si el paquete de GHCR es privado, el NAS necesita credenciales una sola vez:
 
 ```bash
-curl -s http://10.0.0.241:5100/salud
+docker login ghcr.io -u <usuario>
 ```
 
 ### Red
