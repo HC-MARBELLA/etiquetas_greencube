@@ -118,7 +118,12 @@ export const config = {
    * pegatina por tubo.
    */
   copiasPacienteSuelto: numero('COPIAS_PACIENTE_SUELTO', 12),
-  copiasMaximas: numero('COPIAS_MAXIMAS', 30),
+  /**
+   * Tope de seguridad. 20 da margen de sobra: el caso que más gasta es el
+   * paciente sin cita, que ronda las 15 pegatinas. Está para que un cero de
+   * más al teclear no vacíe el rollo, no para limitar el trabajo.
+   */
+  copiasMaximas: numero('COPIAS_MAXIMAS', 20),
 
   /**
    * Base de datos propia: registro de impresiones y vistas guardadas.
