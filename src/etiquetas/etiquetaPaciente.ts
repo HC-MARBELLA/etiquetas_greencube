@@ -1,5 +1,5 @@
 import { config } from '../config.js'
-import type { DatosEtiqueta } from './tipos.js'
+import type { DatosEtiqueta, PacienteEncontrado } from './tipos.js'
 import { campoLogoAlmacenado } from './logo.js'
 import {
   ajustarAAncho,
@@ -286,6 +286,33 @@ export function componerEtiqueta(entrada: DatosEtiqueta, copias: number): Etique
   ].join('\n')
 
   return { zpl, limites: { ancho, alto }, cajas, moduloCodigo }
+}
+
+/**
+ * Convierte un paciente localizado por historia en datos de etiqueta.
+ *
+ * La cabecera lleva el último episodio si lo tiene; si no, solo el número de
+ * historia. El código de barras es siempre la historia, que es lo que leen los
+ * lectores del hospital y nunca falta.
+ */
+export function etiquetaDePaciente(p: PacienteEncontrado): DatosEtiqueta {
+  return {
+    episodio: p.episodio ? `${p.nhc} - ${p.episodio}` : p.nhc,
+    codigoBarras: p.nhc,
+    nombre: p.nombre,
+    fechaNacimiento: p.fechaNacimiento,
+    documento: p.documento,
+    aseguradora: p.aseguradora,
+    poliza: p.poliza,
+    telefono: p.telefono,
+    direccion: p.direccion,
+    poblacion: p.poblacion,
+    // Sin cita no hay hora de asistencia: se pone el momento de la impresión,
+    // que es lo que identifica cuándo se tomó la muestra.
+    fechaAsistencia: `${new Date().toLocaleDateString('es-ES')} ${new Date()
+      .toTimeString()
+      .slice(0, 5)}`,
+  }
 }
 
 /**

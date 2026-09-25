@@ -9,7 +9,7 @@ import {
   registrarImpresion,
   resumenDelDia,
 } from './datos/registro.js'
-import { generarEtiquetaPaciente } from './etiquetas/etiquetaPaciente.js'
+import { etiquetaDePaciente, generarEtiquetaPaciente } from './etiquetas/etiquetaPaciente.js'
 import type { CitaConEstado } from './etiquetas/tipos.js'
 import { enviarZPL, leerEstado } from './impresora/zebra.js'
 
@@ -59,6 +59,7 @@ export async function registrarRutas(app: FastifyInstance): Promise<void> {
 
   app.get('/api/config', async () => ({
     copiasPorDefecto: config.copiasPorDefecto,
+    copiasPacienteSuelto: config.copiasPacienteSuelto,
     copiasMaximas: config.copiasMaximas,
     refrescoSegundos: config.refrescoSegundos,
     origenDatos: datos.nombre,
@@ -131,6 +132,80 @@ export async function registrarRutas(app: FastifyInstance): Promise<void> {
       episodio: peticion.params.episodio,
       historial: historialDeEpisodio(peticion.params.episodio, peticion.query.fecha ?? hoy()),
     }),
+  )
+
+  // --- Paciente sin cita ----------------------------------------------------
+
+  app.get<{ Params: { nhc: string } }>('/api/pacientes/:nhc', async (peticion, respuesta) => {
+    const paciente = await datos.buscarPaciente(peticion.params.nhc)
+    if (!paciente) {
+      return respuesta.status(404).send({ error: 'No hay ningún paciente con ese número de historia' })
+    }
+
+    // Se adjunta lo ya impreso hoy, que es lo que evita duplicar etiquetas
+    // cuando el paciente vuelve al mostrador al rato.
+    const impresiones = resumenDelDia(hoy()).get(paciente.nhc)
+    return impresiones ? { ...paciente, impresiones } : paciente
+  })
+
+  app.post<{ Body: { nhc?: string; copias?: number; impresoraId?: string } }>(
+    '/api/imprimir/paciente',
+    async (peticion, respuesta) => {
+      const nhc = peticion.body?.nhc
+      if (!nhc) return respuesta.status(400).send({ error: 'Falta el número de historia' })
+
+      let copias: number
+      let impresora
+      try {
+        copias = validarCopias(peticion.body?.copias ?? config.copiasPacienteSuelto)
+        impresora = buscarImpresora(peticion.body?.impresoraId)
+      } catch (e) {
+        return respuesta.status(400).send({ error: e instanceof Error ? e.message : String(e) })
+      }
+
+      const paciente = await datos.buscarPaciente(nhc)
+      if (!paciente) {
+        return respuesta.status(404).send({ error: 'No hay ningún paciente con ese número de historia' })
+      }
+
+      const estado = await leerEstado(impresora)
+      if (!estado.accesible) {
+        return respuesta
+          .status(503)
+          .send({ error: `La impresora no responde. ${estado.detalle ?? ''}`.trim() })
+      }
+      if (estado.sinPapel) {
+        return respuesta.status(409).send({ error: 'La impresora no tiene etiquetas' })
+      }
+      if (estado.cabezalAbierto) {
+        return respuesta.status(409).send({ error: 'El cabezal de la impresora está abierto' })
+      }
+
+      await enviarZPL(impresora, generarEtiquetaPaciente(etiquetaDePaciente(paciente), copias))
+
+      // Se registra por número de historia, igual que las citas, para que el
+      // recuento del día sea uno solo venga de donde venga la impresión.
+      const fecha = hoy()
+      registrarImpresion({
+        episodio: paciente.nhc,
+        fecha,
+        copias,
+        impresora: impresora.id,
+        puesto: puestoDe(peticion),
+      })
+
+      app.log.info(
+        { nhc: paciente.nhc, copias, impresora: impresora.id, sinCita: true },
+        'etiquetas impresas',
+      )
+
+      return {
+        ok: true,
+        copias,
+        impresora: impresora.nombre,
+        impresiones: resumenDelDia(fecha).get(paciente.nhc),
+      }
+    },
   )
 
   app.get<{ Params: { id: string } }>('/api/impresoras/:id/estado', async (peticion, respuesta) => {

@@ -112,7 +112,13 @@ export const config = {
   },
 
   copiasPorDefecto: numero('COPIAS_POR_DEFECTO', 3),
-  copiasMaximas: numero('COPIAS_MAXIMAS', 20),
+  /**
+   * Etiquetas que se proponen al paciente sin cita. Son más que las de una
+   * cita normal porque suele venir a una batería de pruebas y necesita una
+   * pegatina por tubo.
+   */
+  copiasPacienteSuelto: numero('COPIAS_PACIENTE_SUELTO', 12),
+  copiasMaximas: numero('COPIAS_MAXIMAS', 30),
 
   /**
    * Base de datos propia: registro de impresiones y vistas guardadas.

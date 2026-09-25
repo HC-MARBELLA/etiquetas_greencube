@@ -55,6 +55,35 @@ export interface FiltrosAgenda {
   especialidades?: string[]
 }
 
+/**
+ * Un paciente localizado por su número de historia, sin pasar por la agenda.
+ *
+ * Es el caso del paciente que se presenta sin cita: antes de imprimirle nada
+ * hay que identificarlo con seguridad, así que se devuelve todo lo que permite
+ * comprobar de un vistazo que es el correcto.
+ */
+export interface PacienteEncontrado {
+  nhc: string
+  nombre: string
+  fechaNacimiento?: string
+  documento?: string
+  aseguradora?: string
+  poliza?: string
+  telefono?: string
+  direccion?: string
+  poblacion?: string
+  /** Último episodio ambulatorio. Ausente si el paciente no tiene ninguno. */
+  episodio?: string
+  /** Fecha de ese episodio, para saber si viene de hace años. */
+  fechaEpisodio?: string
+  /** Etiquetas que ya se le han impreso hoy. */
+  impresiones?: {
+    copias: number
+    veces: number
+    ultima: string
+  }
+}
+
 /** Una cita tal y como se muestra en el listado del mostrador. */
 export interface Cita {
   id: string

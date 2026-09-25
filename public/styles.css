@@ -942,6 +942,195 @@ select:focus-visible {
   color: var(--texto-suave);
 }
 
+/* ---------- Modal de paciente sin cita ---------- */
+
+.modal-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 8vh 16px 16px;
+  background: rgb(15 23 42 / 0.55);
+  backdrop-filter: blur(2px);
+  animation: aparecer 0.12s ease-out;
+}
+
+.modal {
+  width: min(560px, 100%);
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sombra-lg);
+  overflow: hidden;
+  animation: entrar 0.16s ease-out;
+}
+
+.modal-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.modal-cabecera h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.modal-cerrar {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--texto-suave);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.modal-cerrar:hover { background: var(--n-100); color: var(--texto); }
+
+@media (prefers-color-scheme: dark) {
+  .modal-cerrar:hover { background: rgb(255 255 255 / 0.07); }
+}
+
+.modal-cuerpo { padding: 16px; }
+
+.buscador {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+#nhc {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Menlo, monospace;
+  height: 44px;
+}
+
+.pista {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--texto-suave);
+}
+
+.pista code {
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  background: var(--n-100);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pista code { background: rgb(255 255 255 / 0.07); }
+}
+
+.modal-error {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--error-200);
+  border-radius: var(--r);
+  background: var(--error-50);
+  color: var(--error-600);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+/* --- Ficha del paciente --- */
+
+.ficha {
+  margin-top: 14px;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+
+.ficha-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px;
+  background: var(--marca-50);
+  border-bottom: 1px solid var(--borde);
+}
+
+@media (prefers-color-scheme: dark) {
+  .ficha-cabecera { background: rgb(255 255 255 / 0.04); }
+}
+
+.ficha-nombre {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.ficha-nhc {
+  margin-top: 3px;
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-size: 13px;
+  color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.ficha-datos {
+  margin: 0;
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 7px 14px;
+  font-size: 13.5px;
+}
+
+.ficha-datos dt {
+  color: var(--texto-suave);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.ficha-datos dd {
+  margin: 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.ficha-pie {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 13px 14px;
+  border-top: 1px solid var(--borde);
+  background: var(--n-50);
+}
+
+@media (prefers-color-scheme: dark) {
+  .ficha-pie { background: rgb(255 255 255 / 0.03); }
+}
+
+.contador-grande { height: 44px; }
+.contador-grande button { width: 40px; font-size: 19px; }
+.contador-grande input { width: 58px; font-size: 17px; }
+
+.btn-ancho { flex: 1; height: 44px; font-size: 15px; }
+
+@keyframes aparecer {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes entrar {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* ---------- Aviso flotante ---------- */
 
 .aviso {

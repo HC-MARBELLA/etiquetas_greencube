@@ -39,6 +39,24 @@ const el = {
   listaVistas: $('#lista-vistas'),
   guardarVista: $('#guardar-vista'),
   aviso: $('#aviso'),
+
+  // Modal de paciente sin cita
+  abrirBuscador: $('#abrir-buscador'),
+  modal: $('#modal'),
+  modalCerrar: $('#modal-cerrar'),
+  formBuscar: $('#form-buscar'),
+  nhc: $('#nhc'),
+  btnBuscar: $('#btn-buscar'),
+  modalError: $('#modal-error'),
+  ficha: $('#ficha'),
+  fichaNombre: $('#ficha-nombre'),
+  fichaNhc: $('#ficha-nhc'),
+  fichaImpresas: $('#ficha-impresas'),
+  fichaDatos: $('#ficha-datos'),
+  modalCopias: $('#modal-copias'),
+  copiasMenos: $('#copias-menos'),
+  copiasMas: $('#copias-mas'),
+  btnImprimir: $('#btn-imprimir'),
 }
 
 let ajustes = { copiasPorDefecto: 3, copiasMaximas: 20, refrescoSegundos: 25, impresoras: [] }
@@ -661,6 +679,174 @@ async function cargarVistas() {
   } catch { /* sin vistas, sin drama */ }
 }
 
+// ---------- Modal de paciente sin cita ----------
+
+let pacienteEncontrado = null
+
+function errorModal(mensaje) {
+  el.modalError.textContent = mensaje ?? ''
+  el.modalError.hidden = !mensaje
+}
+
+function limpiarFicha() {
+  pacienteEncontrado = null
+  el.ficha.hidden = true
+  el.fichaImpresas.hidden = true
+  el.fichaDatos.replaceChildren()
+}
+
+function abrirModal(abrir) {
+  el.modal.hidden = !abrir
+  if (abrir) {
+    el.nhc.value = ''
+    errorModal(null)
+    limpiarFicha()
+    // Foco inmediato: en el mostrador se teclea la historia nada más abrir.
+    el.nhc.focus()
+  } else {
+    el.abrirBuscador.focus()
+  }
+}
+
+function dato(termino, valor) {
+  if (!valor) return
+  const dt = document.createElement('dt')
+  dt.textContent = termino
+  const dd = document.createElement('dd')
+  dd.textContent = valor
+  el.fichaDatos.append(dt, dd)
+}
+
+function pintarFicha(p) {
+  pacienteEncontrado = p
+
+  el.fichaNombre.textContent = p.nombre
+  el.fichaNhc.textContent = p.episodio ? `${p.nhc} · ${p.episodio}` : p.nhc
+
+  el.fichaDatos.replaceChildren()
+  dato('Nacimiento', p.fechaNacimiento)
+  dato('Documento', p.documento)
+  dato('Aseguradora', p.aseguradora)
+  dato('Nº Póliza', p.poliza)
+  dato('Teléfono', p.telefono)
+  dato('Domicilio', [p.direccion, p.poblacion].filter(Boolean).join(' · '))
+  if (p.episodio) dato('Último episodio', [p.episodio, p.fechaEpisodio].filter(Boolean).join(' · '))
+
+  // Aviso de que ya se le imprimió hoy: evita duplicar cuando el paciente
+  // vuelve al mostrador al rato.
+  if (p.impresiones) {
+    const { copias, veces, ultima } = p.impresiones
+    el.fichaImpresas.textContent =
+      `Ya ${veces > 1 ? 'se le imprimieron' : 'se le imprimió'} ${copias} hoy · ${ultima}`
+    el.fichaImpresas.hidden = false
+  } else {
+    el.fichaImpresas.hidden = true
+  }
+
+  el.modalCopias.value = String(ajustes.copiasPacienteSuelto ?? 12)
+  el.ficha.hidden = false
+}
+
+async function buscarPaciente() {
+  const texto = el.nhc.value.trim()
+  if (!texto) return
+
+  errorModal(null)
+  limpiarFicha()
+  el.btnBuscar.disabled = true
+  el.btnBuscar.textContent = 'Buscando…'
+
+  try {
+    pintarFicha(await pedir(`/api/pacientes/${encodeURIComponent(texto)}`))
+  } catch (e) {
+    errorModal(e.message)
+    el.nhc.select()
+  } finally {
+    el.btnBuscar.disabled = false
+    el.btnBuscar.textContent = 'Buscar'
+  }
+}
+
+async function imprimirPaciente() {
+  if (!pacienteEncontrado) return
+
+  const copias = Number(el.modalCopias.value)
+  el.btnImprimir.disabled = true
+  const previo = el.btnImprimir.textContent
+  el.btnImprimir.textContent = 'Enviando…'
+
+  try {
+    const r = await pedir('/api/imprimir/paciente', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        nhc: pacienteEncontrado.nhc,
+        copias,
+        impresoraId: impresoraActiva()?.id,
+      }),
+    })
+    avisar(`${r.copias} etiquetas de ${pacienteEncontrado.nombre} enviadas a ${r.impresora}`)
+
+    // Se deja listo para el siguiente paciente sin cerrar el modal: en el
+    // mostrador suelen venir varios seguidos.
+    el.nhc.value = ''
+    limpiarFicha()
+    el.nhc.focus()
+
+    // Puede estar también en la agenda del día: se refresca para que la fila
+    // aparezca marcada como impresa.
+    cargarAgenda({ silencioso: true })
+  } catch (e) {
+    errorModal(e.message)
+    comprobarImpresora()
+  } finally {
+    el.btnImprimir.disabled = false
+    el.btnImprimir.textContent = previo
+  }
+}
+
+function prepararModal() {
+  el.abrirBuscador.addEventListener('click', () => abrirModal(true))
+  el.modalCerrar.addEventListener('click', () => abrirModal(false))
+
+  // Cerrar pulsando el fondo, pero no al pulsar dentro del cuadro.
+  el.modal.addEventListener('click', (ev) => {
+    if (ev.target === el.modal) abrirModal(false)
+  })
+
+  el.formBuscar.addEventListener('submit', (ev) => {
+    ev.preventDefault()
+    buscarPaciente()
+  })
+
+  // Solo dígitos: el número de historia no tiene letras y así se evita
+  // teclear de más con el lector de códigos.
+  el.nhc.addEventListener('input', () => {
+    const limpio = el.nhc.value.replace(/\D/g, '')
+    if (limpio !== el.nhc.value) el.nhc.value = limpio
+  })
+
+  const mover = (d) => {
+    const max = ajustes.copiasMaximas ?? 30
+    const actual = Number(el.modalCopias.value) || (ajustes.copiasPacienteSuelto ?? 12)
+    el.modalCopias.value = String(Math.min(max, Math.max(1, actual + d)))
+  }
+  el.copiasMenos.addEventListener('click', () => mover(-1))
+  el.copiasMas.addEventListener('click', () => mover(1))
+
+  el.btnImprimir.addEventListener('click', imprimirPaciente)
+
+  document.addEventListener('keydown', (ev) => {
+    if (el.modal.hidden) return
+    if (ev.key === 'Escape') abrirModal(false)
+    // Enter sobre la ficha imprime: evita tener que ir al ratón.
+    if (ev.key === 'Enter' && pacienteEncontrado && document.activeElement !== el.nhc) {
+      ev.preventDefault()
+      imprimirPaciente()
+    }
+  })
+}
+
 // ---------- Arranque ----------
 
 async function iniciar() {
@@ -811,6 +997,8 @@ async function iniciar() {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) cargarAgenda({ silencioso: true })
   })
+
+  prepararModal()
 
   setInterval(mostrarAntiguedad, 1000)
   setInterval(comprobarImpresora, 60000)

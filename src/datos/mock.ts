@@ -4,7 +4,9 @@ import type {
   DatosEtiqueta,
   Especialidad,
   FiltrosAgenda,
+  PacienteEncontrado,
 } from '../etiquetas/tipos.js'
+import { normalizarNhc } from './prime.js'
 import type { ProveedorDatos } from './proveedor.js'
 
 /**
@@ -162,6 +164,48 @@ export const proveedorMock: ProveedorDatos = {
         especialidadId: v.especialidad,
       }))
       .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+  },
+
+  async buscarPaciente(nhc: string): Promise<PacienteEncontrado | null> {
+    const buscado = normalizarNhc(nhc)
+    if (!buscado) return null
+
+    // Los pacientes del listado se pueden buscar por su historia, y además hay
+    // uno que no aparece en ninguna agenda: es el caso que interesa probar.
+    const deAgenda = REGISTROS.find((r) => r.etiqueta.codigoBarras === buscado)
+    if (deAgenda) {
+      const e = deAgenda.etiqueta
+      return {
+        nhc: buscado,
+        nombre: e.nombre,
+        fechaNacimiento: e.fechaNacimiento,
+        documento: e.documento,
+        aseguradora: e.aseguradora,
+        poliza: e.poliza,
+        telefono: e.telefono,
+        direccion: e.direccion,
+        poblacion: e.poblacion,
+        episodio: e.episodio.split(' - ')[1],
+      }
+    }
+
+    if (buscado === '00209999') {
+      return {
+        nhc: buscado,
+        nombre: 'SIN CITA PRUEBA, PACIENTE',
+        fechaNacimiento: '05/06/1975',
+        documento: '99999999R',
+        aseguradora: 'ASEGURADORA DEMO SA',
+        poliza: '9999999990000000009',
+        telefono: '600000099',
+        direccion: 'CALLE SIN CITA 9',
+        poblacion: 'Málaga',
+        episodio: 'CC004',
+        fechaEpisodio: '10/09/2026',
+      }
+    }
+
+    return null
   },
 
   async firmaDelDia(_fecha: string): Promise<string> {

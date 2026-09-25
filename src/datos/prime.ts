@@ -6,6 +6,7 @@ import type {
   DatosEtiqueta,
   Especialidad,
   FiltrosAgenda,
+  PacienteEncontrado,
 } from '../etiquetas/tipos.js'
 import type { ProveedorDatos } from './proveedor.js'
 
@@ -75,6 +76,18 @@ async function conexion(): Promise<sql.ConnectionPool> {
   }).connect()
 
   return pool
+}
+
+/**
+ * Deja el número de historia como lo guarda PRIME: 8 dígitos con ceros
+ * delante. Así en el mostrador se puede teclear "115886" y encontrar
+ * "00115886", que es como viene impreso en la documentación del paciente.
+ * Devuelve cadena vacía si lo tecleado no sirve como NHC.
+ */
+export function normalizarNhc(entrada: string): string {
+  const digitos = (entrada ?? '').replace(/\D/g, '')
+  if (digitos.length === 0 || digitos.length > 8) return ''
+  return digitos.padStart(8, '0')
 }
 
 /** Quita el relleno de los CHAR y colapsa los espacios sobrantes. */
@@ -260,6 +273,70 @@ export const proveedorPrime: ProveedorDatos = {
         especialidadId: limpiar(f.especialidad) || undefined,
       }
     })
+  },
+
+  async buscarPaciente(nhc: string): Promise<PacienteEncontrado | null> {
+    const buscado = normalizarNhc(nhc)
+    if (!buscado) return null
+
+    const cnx = await conexion()
+    const peticion = cnx.request()
+    peticion.input('nhc', sql.VarChar(8), buscado)
+
+    // OUTER APPLY para el último episodio: sirve de cabecera de la etiqueta
+    // cuando el paciente no viene de una cita. Un paciente recién dado de alta
+    // puede no tener ninguno, de ahí que sea OUTER y no CROSS.
+    const resultado = await peticion.query(`
+      SELECT TOP 1
+        c.HISTORYNUMBER, c.NAMECUSTOMER, c.FIRSTSURNAMECUSTOMER, c.SECONDSURNAMECUSTOMER,
+        c.TIN, c.DATEBIRTH, c.NUMBERPOLICY,
+        c.ADDRESS, c.NUMBERADRESS, c.THREEPHONE, c.PHONEADRESS,
+        ins.ENTITY   AS ASEGURADORA,
+        ag.ENTITY    AS CONVENIO,
+        p.NAME       AS PROVINCIA,
+        ultimo.PROCESSID,
+        ultimo.CONSULTATIONDATE
+      FROM PatientManagement..Customer c
+      OUTER APPLY (
+        SELECT TOP 1 o.PROCESSID, o.CONSULTATIONDATE
+        FROM HealthcareProcs..OutCustomerProcess o
+        WHERE o.CUSTOMERID = c.CUSTOMERID
+        ORDER BY o.CONSULTATIONDATE DESC, o.PROCESSID DESC
+      ) ultimo
+      LEFT JOIN Configuration..agreement ag  ON ag.[KEY] = c.AGREEMENTID
+      LEFT JOIN Configuration..insurance ins ON ins.[KEY] = ag.mutualid
+      LEFT JOIN Configuration..Provinces p   ON RTRIM(p.[KEY]) = RTRIM(c.PROVINCEADRESSID)
+      WHERE RTRIM(c.HISTORYNUMBER) = @nhc
+    `)
+
+    const f = resultado.recordset[0]
+    if (!f) return null
+
+    const aseguradora = limpiar(f.ASEGURADORA)
+    const convenio = limpiar(f.CONVENIO)
+    const domicilio = [limpiar(f.ADDRESS), limpiar(f.NUMBERADRESS)].filter(Boolean).join(' ')
+
+    return {
+      nhc: limpiar(f.HISTORYNUMBER),
+      nombre: [f.FIRSTSURNAMECUSTOMER, f.SECONDSURNAMECUSTOMER, f.NAMECUSTOMER]
+        .map(limpiar)
+        .filter(Boolean)
+        .join(' '),
+      fechaNacimiento: f.DATEBIRTH ? new Date(f.DATEBIRTH).toLocaleDateString('es-ES') : undefined,
+      documento: opcional(f.TIN),
+      aseguradora:
+        aseguradora && convenio
+          ? `${aseguradora} - ${convenio}`
+          : aseguradora || convenio || undefined,
+      poliza: opcional(f.NUMBERPOLICY),
+      telefono: opcional(f.THREEPHONE) ?? opcional(f.PHONEADRESS),
+      direccion: domicilio || undefined,
+      poblacion: opcional(f.PROVINCIA),
+      episodio: opcional(f.PROCESSID),
+      fechaEpisodio: f.CONSULTATIONDATE
+        ? new Date(f.CONSULTATIONDATE).toLocaleDateString('es-ES')
+        : undefined,
+    }
   },
 
   async firmaDelDia(fecha: string): Promise<string> {

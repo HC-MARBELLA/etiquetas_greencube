@@ -5,6 +5,7 @@ import type {
   DatosEtiqueta,
   Especialidad,
   FiltrosAgenda,
+  PacienteEncontrado,
 } from '../etiquetas/tipos.js'
 import { proveedorMock } from './mock.js'
 import { proveedorPrime } from './prime.js'
@@ -44,6 +45,14 @@ export interface ProveedorDatos {
 
   /** Datos necesarios para componer la etiqueta de una cita. */
   datosEtiqueta(citaId: string): Promise<DatosEtiqueta>
+
+  /**
+   * Busca un paciente por número de historia, al margen de la agenda.
+   *
+   * Para el paciente que llega sin cita. Devuelve null si no existe, en lugar
+   * de lanzar: no encontrarlo es un resultado normal, no un error.
+   */
+  buscarPaciente(nhc: string): Promise<PacienteEncontrado | null>
 }
 
 export function obtenerProveedor(): ProveedorDatos {

@@ -18,6 +18,12 @@
       </div>
 
       <div class="barra-estado">
+        <button id="abrir-buscador" class="btn btn-principal btn-chico" type="button">
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M9 3.5a5.5 5.5 0 1 0 3.4 9.8l3.1 3.2a1 1 0 0 0 1.4-1.4l-3.2-3.1A5.5 5.5 0 0 0 9 3.5Zm-3.5 5.5a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0Z" />
+          </svg>
+          Paciente sin cita
+        </button>
         <span id="actualizado" class="meta"></span>
         <span class="estado-impresora">
           <span id="luz" class="luz" aria-hidden="true"></span>
@@ -163,6 +169,64 @@
 
       <p class="pie-nota">Los datos de paciente no salen de la red interna del hospital.</p>
     </main>
+
+    <!-- Paciente sin cita: buscar por nº de historia, validar e imprimir -->
+    <div id="modal" class="modal-fondo" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+        <header class="modal-cabecera">
+          <h2 id="modal-titulo">Paciente sin cita</h2>
+          <button id="modal-cerrar" class="modal-cerrar" type="button" aria-label="Cerrar">×</button>
+        </header>
+
+        <div class="modal-cuerpo">
+          <form id="form-buscar" class="buscador" autocomplete="off">
+            <div class="campo campo-crece">
+              <label for="nhc">Nº de historia</label>
+              <input
+                type="text"
+                id="nhc"
+                inputmode="numeric"
+                placeholder="p. ej. 115886"
+                maxlength="8"
+              />
+            </div>
+            <button id="btn-buscar" class="btn btn-suave" type="submit">Buscar</button>
+          </form>
+
+          <p id="pista-nhc" class="pista">
+            No hacen falta los ceros de delante: <code>115886</code> encuentra <code>00115886</code>.
+          </p>
+
+          <p id="modal-error" class="modal-error" hidden></p>
+
+          <div id="ficha" class="ficha" hidden>
+            <div class="ficha-cabecera">
+              <div>
+                <div id="ficha-nombre" class="ficha-nombre"></div>
+                <div id="ficha-nhc" class="ficha-nhc"></div>
+              </div>
+              <span id="ficha-impresas" class="chip chip-ok" hidden></span>
+            </div>
+
+            <dl id="ficha-datos" class="ficha-datos"></dl>
+
+            <div class="ficha-pie">
+              <div class="campo">
+                <label for="modal-copias">Etiquetas</label>
+                <div class="contador contador-grande">
+                  <button type="button" id="copias-menos" aria-label="Una etiqueta menos">−</button>
+                  <input type="number" id="modal-copias" min="1" value="12" aria-label="Número de etiquetas" />
+                  <button type="button" id="copias-mas" aria-label="Una etiqueta más">+</button>
+                </div>
+              </div>
+              <button id="btn-imprimir" class="btn btn-principal btn-ancho" type="button">
+                Imprimir etiquetas
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div id="aviso" class="aviso" role="status" aria-live="polite" hidden></div>
 
